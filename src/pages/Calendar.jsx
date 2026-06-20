@@ -103,7 +103,7 @@ const STYLES = `
 
   /* ── Day cell ── */
   .cal-day {
-    aspect-ratio: 1;
+    aspect-ratio: 3/6;
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.08);
     background: rgba(255,255,255,0.03);
