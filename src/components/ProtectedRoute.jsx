@@ -53,11 +53,11 @@ const SPINNER_STYLES = `
 function AuthLoadingScreen() {
   return (
     <>
-      <style>{SPINNER_STYLES}</style>
-      <div className="auth-loading">
-        <div className="auth-loading-wordmark">Dated</div>
-        <div className="auth-loading-ring" />
-      </div>
+    <style>{SPINNER_STYLES}</style>
+    <div className="auth-loading">
+      <div className="auth-loading-ring" />
+      <div className="auth-loading-wordmark">Loading...</div>
+    </div>
     </>
-  );
+  )
 }

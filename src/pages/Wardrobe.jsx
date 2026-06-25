@@ -12,7 +12,7 @@ import {
   Trash2,
   X
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -128,6 +128,18 @@ export default function Wardrobe() {
     setDeleteConfirm(null)
   }
 
+  const handleLogWear = async (item, delta) => {
+    const newCount = Math.max(0, (item.times_worn || 0) + delta)
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, times_worn: newCount } : i))
+    const { error } = await supabase
+      .from('wardrobe_items')
+      .update({ times_worn: newCount })
+      .eq('id', item.id)
+    if (error) {
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, times_worn: item.times_worn } : i))
+    }
+  }
+
   const filtered = items.filter(item => {
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory
     const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()) || (item.brand || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -186,7 +198,7 @@ export default function Wardrobe() {
         </div>
       )}
 
-            {/* Weekly Digest link */}
+      {/* Weekly Digest link */}
       <div style={{ padding: '12px 1rem 0' }}>
         <button
           onClick={() => navigate('/digest')}
@@ -261,6 +273,7 @@ export default function Wardrobe() {
                 item={item}
                 onEdit={() => openEdit(item)}
                 onDelete={() => setDeleteConfirm(item.id)}
+                onLogWear={(delta) => handleLogWear(item, delta)}
               />
             ))}
           </div>
@@ -299,9 +312,28 @@ export default function Wardrobe() {
   )
 }
 
-function ItemRow({ item, onEdit, onDelete }) {
+function ItemRow({ item, onEdit, onDelete, onLogWear }) {
   const Icon = CATEGORY_ICONS[item.category] || Package
   const colorHex = COLOR_SWATCHES.find(c => c.label.toLowerCase() === (item.color || '').toLowerCase())?.hex
+
+  const longPressTimer = useRef(null)
+  const didLongPress = useRef(false)
+
+  const handlePressStart = () => {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      if (item.times_worn > 0) onLogWear(-1)
+    }, 500)
+  }
+
+  const handlePressEnd = () => {
+    clearTimeout(longPressTimer.current)
+  }
+
+  const handleTap = () => {
+    if (!didLongPress.current) onLogWear(1)
+  }
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.04)', borderRadius: '14px', padding: '12px 14px', gap: '12px' }}>
@@ -322,6 +354,32 @@ function ItemRow({ item, onEdit, onDelete }) {
         <p style={{ margin: 0, fontSize: '11px', color: '#6b6760' }}>wears</p>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <button
+          onPointerDown={handlePressStart}
+          onPointerUp={handlePressEnd}
+          onPointerLeave={handlePressEnd}
+          onClick={handleTap}
+          title="Tap to add · Hold to undo"
+          style={{
+            background: 'rgba(240,237,232,0.08)',
+            border: '0.5px solid rgba(240,237,232,0.18)',
+            borderRadius: '8px',
+            color: '#f0ede8',
+            cursor: 'pointer',
+            padding: '3px 7px',
+            fontSize: '16px',
+            fontWeight: '500',
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+            touchAction: 'none',
+          }}
+        >
+          +
+        </button>
         <button onClick={onEdit} style={{ background: 'none', border: 'none', color: '#8a8580', cursor: 'pointer', padding: '4px' }}>
           <Edit3 size={15} />
         </button>
@@ -364,17 +422,14 @@ function AddEditSheet({ form, setForm, onSave, onClose, saving, error, isEdit })
         style={{ width: '100%', background: '#141412', borderRadius: '20px 20px 0 0', padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 64px)', maxHeight: '90dvh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Handle */}
         <div style={{ width: '36px', height: '4px', background: 'rgba(255,255,255,0.12)', borderRadius: '2px', margin: '12px auto 0' }} />
 
-        {/* Sheet header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 1rem 12px' }}>
           <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '18px' }}>{isEdit ? 'Edit item' : 'Add item'}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b6760', cursor: 'pointer', padding: '4px' }}><X size={20} /></button>
         </div>
 
         <div style={{ padding: '0 1rem 1rem' }}>
-          {/* Name */}
           <label style={{ display: 'block', fontSize: '12px', color: '#6b6760', letterSpacing: '0.05em', marginBottom: '6px' }}>NAME *</label>
           <input
             type="text"
@@ -384,7 +439,6 @@ function AddEditSheet({ form, setForm, onSave, onClose, saving, error, isEdit })
             style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '12px', color: '#f0ede8', fontSize: '15px', outline: 'none', boxSizing: 'border-box', marginBottom: '1.25rem' }}
           />
 
-          {/* Category */}
           <label style={{ display: 'block', fontSize: '12px', color: '#6b6760', letterSpacing: '0.05em', marginBottom: '6px' }}>CATEGORY</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginBottom: '1.25rem' }}>
             {CATEGORY_OPTIONS.map(cat => (
@@ -411,7 +465,6 @@ function AddEditSheet({ form, setForm, onSave, onClose, saving, error, isEdit })
             ))}
           </div>
 
-          {/* Color */}
           <label style={{ display: 'block', fontSize: '12px', color: '#6b6760', letterSpacing: '0.05em', marginBottom: '8px' }}>COLOR</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '1.25rem' }}>
             {COLOR_SWATCHES.map(swatch => (
@@ -434,7 +487,6 @@ function AddEditSheet({ form, setForm, onSave, onClose, saving, error, isEdit })
             ))}
           </div>
 
-          {/* Brand */}
           <label style={{ display: 'block', fontSize: '12px', color: '#6b6760', letterSpacing: '0.05em', marginBottom: '6px' }}>BRAND (OPTIONAL)</label>
           <input
             type="text"
@@ -457,4 +509,3 @@ function AddEditSheet({ form, setForm, onSave, onClose, saving, error, isEdit })
       </div>
     </div>
   )
-}
