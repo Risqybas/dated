@@ -1,10 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-
-const AuthContext = createContext(null);
+import { AuthContext } from "../hooks/useAuth";
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(undefined); // undefined = still loading
+  const [session, setSession] = useState(undefined);
   const [profile, setProfile] = useState(null);
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -38,23 +37,18 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // 1. Hydrate session on mount
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!mountedRef.current) return;
       setSession(s ?? null);
       if (s?.user) fetchProfile(s.user.id);
     });
 
-    // 2. Listen for ALL auth changes, including account switches
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!mountedRef.current) return;
-
-        // Always update the session for any event
         setSession(newSession ?? null);
 
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-          // New user might differ from the previous one (account switch)
           if (newSession?.user) {
             fetchProfile(newSession.user.id);
           }
@@ -80,16 +74,10 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user ?? null,
     profile,
-    loading: session === undefined, // true only during initial hydration
+    loading: session === undefined,
     refreshProfile,
     signOut,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
 }
