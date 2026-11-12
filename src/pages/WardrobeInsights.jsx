@@ -8,7 +8,7 @@ import {
   Tooltip,
   XAxis, YAxis
 } from "recharts";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
