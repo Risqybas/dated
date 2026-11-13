@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -201,8 +201,8 @@ const icons = {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function Layout() {
   const { profile } = useAuth();
-  const location    = useLocation();
-  const isCapture   = location.pathname === "/capture";
+  // const location    = useLocation();
+  // const isCapture   = location.pathname === "/capture";
 
   return (
     <>
