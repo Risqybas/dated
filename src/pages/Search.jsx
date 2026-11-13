@@ -398,42 +398,50 @@ export default function Search() {
 
   // ── Search on debounced query ───────────────────────────────────────────
   useEffect(() => {
-    if (!debouncedQuery || !user) {
-      setResults([]);
-      setSearched(false);
-      return;
+  // Don't call setState here directly — delegate everything to the async fn
+  if (!debouncedQuery || !user) return;
+
+  let cancelled = false;
+
+  (async () => {
+    setSearching(true);
+    setSearched(false);
+    setResults([]);
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, is_private, bio")
+      .or(`username.ilike.%${debouncedQuery}%,display_name.ilike.%${debouncedQuery}%`)
+      .neq("id", user.id)
+      .limit(20);
+
+    if (cancelled) return;
+
+    if (data && data.length > 0) {
+      const ids = data.map(u => u.id);
+      const { data: follows } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id)
+        .in("following_id", ids);
+
+      if (cancelled) return;
+
+      const followSet = new Set((follows ?? []).map(f => f.following_id));
+      setFollowMap(prev => {
+        const next = { ...prev };
+        ids.forEach(id => { next[id] = followSet.has(id); });
+        return next;
+      });
     }
-    (async () => {
-      setSearching(true);
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, is_private, bio")
-        .or(`username.ilike.%${debouncedQuery}%,display_name.ilike.%${debouncedQuery}%`)
-        .neq("id", user.id)
-        .limit(20);
+    setResults(data ?? []);
+    setSearching(false);
+    setSearched(true);
+  })();
 
-      if (data && data.length > 0) {
-        const ids = data.map(u => u.id);
-        const { data: follows } = await supabase
-          .from("follows")
-          .select("following_id")
-          .eq("follower_id", user.id)
-          .in("following_id", ids);
-
-        const followSet = new Set((follows ?? []).map(f => f.following_id));
-        setFollowMap(prev => {
-          const next = { ...prev };
-          ids.forEach(id => { next[id] = followSet.has(id); });
-          return next;
-        });
-      }
-
-      setResults(data ?? []);
-      setSearching(false);
-      setSearched(true);
-    })();
-  }, [debouncedQuery, user]);
+  return () => { cancelled = true; };
+}, [debouncedQuery, user]);
 
   // ── Follow / unfollow ───────────────────────────────────────────────────
   async function handleFollow(e, targetUser) {

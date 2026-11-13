@@ -410,24 +410,19 @@ export default function Calendar() {
   const [year, setYear]   = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
 
-  const [outfits, setOutfits]               = useState({});
   const [loading, setLoading]               = useState(true);
   const [selectedDate, setSelectedDate]     = useState(null);
   const [selectedOutfits, setSelectedOutfits] = useState([]);
 
-  // ── Inject the just-saved outfit immediately from navigation state ────────
-  useEffect(() => {
-    const newOutfit = location.state?.newOutfit;
-    if (!newOutfit || !newOutfit.capture_date) return;
-
-    setOutfits(prev => {
-      const date = newOutfit.capture_date;
-      const existing = prev[date] ?? [];
-      // Avoid duplicates if the fetch also returns it
-      if (existing.some(o => o.id === newOutfit.id)) return prev;
-      return { ...prev, [date]: [newOutfit, ...existing] };
-    });
-  }, []);
+  
+  const [outfits, setOutfits] = useState(() => {
+  const newOutfit = location.state?.newOutfit;
+  if (newOutfit?.capture_date) {
+    return { [newOutfit.capture_date]: [newOutfit] };
+  }
+  return {};
+});
+//update
 
   // ── Fetch outfits for current month ──────────────────────────────────────
   useEffect(() => {
